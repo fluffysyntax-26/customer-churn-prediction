@@ -5,7 +5,7 @@ from tensorflow.keras.models import load_model
 import pickle
 
 # Load the trained model
-model = load_model('/home/dpxk/Desktop/customer-churn-prediction/model.keras')
+model = load_model('model.keras')
 
 # Load the encoders and scaler
 with open('gender_le.pkl', 'rb') as file: 
