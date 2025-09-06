@@ -19,53 +19,72 @@ with open('scaler.pkl', 'rb') as file:
 
 # Streamlit app
 st.title('Customer Churn Prediction')
+st.markdown("Enter the customer details below to predict the likelihood of churn.")
 
-# User Input
-geography = st.selectbox('Geography', geography_ohe.categories_[0])
-gender = st.selectbox('Gender', gender_le.classes_)
-age = st.slider('Age', 18, 92)
-balance = st.number_input('Balance', min_value=0.0)
-credit_score = st.number_input('Credit Score', min_value=0, max_value=1000)
-estimated_salary = st.number_input('Estimated Salary', min_value=0.0)
-tenure = st.slider('Tenure', 0, 10)
-num_of_products = st.slider('Number of Products', 1, 4)
-has_cr_card = st.selectbox('Has Credit Card', [0, 1])
-is_active_member = st.selectbox('Is Active Member', [0, 1])
+# User Input - organized into columns for a cleaner look
+col1, col2 = st.columns(2)
 
-# prepare the input data
-input_data = pd.DataFrame({
-    'CreditScore': [credit_score],
-    'Gender': [gender_le.transform([gender])[0]],
-    'Age': [age],
-    'Tenure': [tenure],
-    'Balance': [balance],
-    'NumOfProducts': [num_of_products],
-    'HasCrCard': [has_cr_card],
-    'IsActiveMember': [is_active_member],
-    'EstimatedSalary': [estimated_salary]
-})
+with col1:
+    credit_score = st.number_input('Credit Score', min_value=300, max_value=850, value=650)
+    geography = st.selectbox('Geography', ['France', 'Germany', 'Spain'])
+    gender = st.selectbox('Gender', ['Male', 'Female'])
+    age = st.slider('Age', 18, 92, 38)
+    tenure = st.slider('Tenure (Years)', 0, 10, 5)
 
-# One-hot encode 'Geography'
-geo_encoded = geography_ohe.transform(pd.DataFrame({'Geography': [geography]}))
-geo_encoded_df = pd.DataFrame(geo_encoded, columns=geography_ohe.get_feature_names_out(['Geography']))
+with col2:
+    balance = st.number_input('Balance', value=60000.0, format="%.2f")
+    num_of_products = st.slider('Number of Products', 1, 4, 1)
+    # Use "Yes"/"No" for a better user experience
+    has_cr_card_str = st.selectbox('Has Credit Card?', ['Yes', 'No'])
+    is_active_member_str = st.selectbox('Is Active Member?', ['Yes', 'No'])
+    estimated_salary = st.number_input('Estimated Salary', value=50000.0, format="%.2f")
 
-# Combine one-hot encoded columns with input data
-input_data = pd.concat([input_data.reset_index(drop=True), geo_encoded_df], axis=1)
+# --- Prediction Logic ---
+if st.button('Predict Churn'):
+    # Convert user-friendly "Yes"/"No" back to 1/0 for the model
+    has_cr_card = 1 if has_cr_card_str == 'Yes' else 0
+    is_active_member = 1 if is_active_member_str == 'Yes' else 0
 
-# Scale the input data
-input_data_scaled = scaler.transform(input_data)
+    # Create a dictionary with all the user inputs
+    input_data_dict = {
+        'CreditScore': credit_score,
+        'Geography': geography,
+        'Gender': gender,
+        'Age': age,
+        'Tenure': tenure,
+        'Balance': balance,
+        'NumOfProducts': num_of_products,
+        'HasCrCard': has_cr_card,
+        'IsActiveMember': is_active_member,
+        'EstimatedSalary': estimated_salary
+    }
 
-# Predict churn
-prediction = model.predict(input_data_scaled)
-prediction_prob = prediction[0][0] * 100
+    # Create a DataFrame from the dictionary
+    input_df = pd.DataFrame([input_data_dict])
 
-# print probability
-st.write(f'Churn Probability: {prediction_prob:.2f}%')
+    # --- Preprocessing ---
+    # Encode Gender
+    input_df['Gender'] = input_df['Gender'].apply(lambda x: 1 if x == 'Male' else 0)
 
+    # One-hot encode 'Geography' using the loaded encoder object
+    geo_encoded_array = geography_ohe.transform(input_df[['Geography']])
+    geo_encoded_df = pd.DataFrame(geo_encoded_array, columns=geography_ohe.get_feature_names_out(['Geography']))
+    
+    # Drop the original 'Geography' column and concatenate the new encoded columns
+    input_df = input_df.drop('Geography', axis=1)
+    input_df = pd.concat([input_df, geo_encoded_df], axis=1)
 
-if prediction > 0.5: 
-    st.write('The customer is likely to churn')
-else: 
-    st.write('The customer is not likely to churn')
+    # Scale the input data
+    input_data_scaled = scaler.transform(input_df)
 
+    # --- Prediction and Display ---
+    prediction_prob = model.predict(input_data_scaled)
+    churn_probability = prediction_prob[0][0]
 
+    st.subheader('Prediction Result')
+    st.write(f'**Churn Probability:** {churn_probability:.2%}')
+
+    if churn_probability > 0.5:
+        st.error('This customer is LIKELY to churn.')
+    else:
+        st.success('This customer is LIKELY to stay.')
