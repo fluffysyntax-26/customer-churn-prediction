@@ -2,6 +2,12 @@
 
 This project uses an Artificial Neural Network (ANN) to predict customer churn based on historical data. It includes a Streamlit web application that allows users to input customer details and receive a real-time prediction on whether the customer is likely to churn.
 
+## Live Demo
+
+You can access the live application here:
+
+[**Customer Churn Prediction App**](https://customer-churn-prediction-i8jkyrbtrz4fajux4zzuxm.streamlit.app/)
+
 ## Features
 
   * **Customer Churn Prediction**: Predicts if a customer is likely to churn or not.
